@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* TDAH Dark Neon Design - ALWAYS DARK */
+:root {
+  /* Backgrounds - Midnight Navy / Near Black */
+  --background: #0a0e1a;
+  --surface: #151b2e;
+  --surface-elevated: #1a2238;
+
+  /* Text */
+  --foreground: #e8edf5;
+  --muted: #8b93a8;
+
+  /* Borders */
+  --border: #2a3550;
+  --border-accent: #3d4d70;
+
+  /* Neon Accent - Purple/Blue */
+  --accent: #818cf8;
+  --accent-light: #a5b4fc;
+  --accent-dark: #6366f1;
+  --accent-foreground: #0a0e1a;
+
+  /* Gradient - Cyan → Blue → Violet → Magenta */
+  --gradient-start: #06b6d4; /* cyan */
+  --gradient-mid-1: #3b82f6;  /* blue */
+  --gradient-mid-2: #8b5cf6;  /* violet */
+  --gradient-end: #ec4899;    /* magenta */
+
+  /* Status Colors */
+  --success: #10b981;
+  --success-glow: #10b98140;
+  --warm: #f59e0b;
+
+  /* Glows */
+  --glow-purple: #818cf860;
+  --glow-cyan: #06b6d440;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border: var(--border);
+  --color-border-accent: var(--border-accent);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-warm: var(--warm);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes feedback-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--glow-purple);
+  }
+  50% {
+    box-shadow: 0 0 30px var(--glow-purple), 0 0 40px var(--glow-cyan);
+  }
+}
+
+.xp-pop,
+.feedback-pop {
+  animation: feedback-pop 0.28s ease-out;
+}
+
+.level-bar-fill {
+  transition: width 0.4s ease-out;
+  background: linear-gradient(
+    90deg,
+    var(--gradient-start),
+    var(--gradient-mid-1),
+    var(--gradient-mid-2),
+    var(--gradient-end)
+  );
+}
+
+.focus-bar-fill {
+  transition: width 1s linear;
+  background: linear-gradient(
+    90deg,
+    var(--gradient-start),
+    var(--gradient-mid-1),
+    var(--gradient-mid-2)
+  );
+}
+
+/* Neon Gradient Button */
+.gradient-button {
+  background: linear-gradient(
+    135deg,
+    var(--gradient-start),
+    var(--gradient-mid-1),
+    var(--gradient-mid-2),
+    var(--gradient-end)
+  );
+  box-shadow: 0 4px 24px var(--glow-purple);
+  transition: all 0.3s ease;
+}
+
+.gradient-button:hover:not(:disabled) {
+  box-shadow: 0 8px 32px var(--glow-purple), 0 0 16px var(--glow-cyan);
+  transform: translateY(-1px);
+}
+
+.gradient-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Neon Card */
+.neon-card {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-accent);
+  box-shadow: 0 0 20px var(--glow-purple);
+}
+
+.neon-card-strong {
+  background: var(--surface-elevated);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 30px var(--glow-purple);
+}
+
+/* Dark Elevated Panel */
+.dark-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.dark-panel-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-accent);
+}

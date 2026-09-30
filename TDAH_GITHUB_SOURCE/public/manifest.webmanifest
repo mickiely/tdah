@@ -1,0 +1,10 @@
+{
+  "name": "TDAH",
+  "short_name": "TDAH",
+  "description": "Your brain isn't broken. It deserves better software.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9f7",
+  "theme_color": "#4f46e5",
+  "icons": []
+}
