@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { xpIntoCurrentLevel, levelForXp, type Capacity } from "@/lib/xp/config";
 import { getState } from "@/lib/storage";
-import { getTodayDate, startFocusSession, saveMainQuest } from "@/lib/storage/actions";
+import { getTodayDate, startFocusSession, saveMainQuest, resumePreviousMission } from "@/lib/storage/actions";
 import { CapacityPicker } from "@/components/CapacityPicker";
 import { MainQuestCard } from "@/components/MainQuestCard";
 import { MorningReset } from "@/components/MorningReset";
@@ -17,6 +17,7 @@ import { DailySummary } from "@/components/DailySummary";
 import { MomentumChainCard } from "@/components/MomentumChainCard";
 import { SoundtrackLauncher } from "@/components/SoundtrackLauncher";
 import { SmallWins } from "@/components/SmallWins";
+import { StarterStep } from "@/components/StarterStep";
 import type { DailySummaryData, MovedForward } from "@/lib/summary";
 import { displayCurrentChain } from "@/lib/chain";
 import {
@@ -31,6 +32,7 @@ export default function TodayPage() {
   const [mounted, setMounted] = useState(false);
   const [, refreshProgress] = useState(0);
   const [missionInput, setMissionInput] = useState("");
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<FocusDuration | null>(25);
 
   useEffect(() => {
@@ -47,6 +49,9 @@ export default function TodayPage() {
 
   const capacity = state.capacity[today] || null;
   const mainQuest = state.missions[today] || null;
+  const previousDate = Object.keys(state.missions).filter((date) => date < today).sort().at(-1);
+  const previousMission = previousDate ? state.missions[previousDate] : null;
+  const previousNote = previousMission ? state.starters?.[previousMission.id]?.nextNote : null;
   const progress = state.progress;
   const momentum = progress.momentumState;
   const xpToday = state.xpEvents.filter((e) => e.eventDate === today);
@@ -168,6 +173,19 @@ export default function TodayPage() {
 
       <SmallWins wins={state.smallWins} today={today} onChange={() => refreshProgress((value) => value + 1)} />
 
+      {!mainQuest && !recoveryDismissed && previousMission?.status === "in_progress" && previousNote && (
+        <section aria-labelledby="welcome-back-heading" className="rounded-2xl border border-[var(--border-accent)] bg-[var(--surface-elevated)] p-5">
+          <h2 id="welcome-back-heading" className="text-xl font-bold">Welcome back. Start from here.</h2>
+          <p className="mt-2 break-words text-sm">{previousMission.title}</p>
+          <p className="mt-2 break-words text-sm text-[var(--muted)]">Your saved next step: {previousNote}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { if (previousDate && resumePreviousMission(previousDate)) refreshProgress((value) => value + 1); }} className="min-h-[48px] rounded-xl border border-[var(--border-accent)] px-4 text-sm font-semibold">Use this mission today</button>
+            <button type="button" onClick={() => setRecoveryDismissed(true)} className="min-h-[48px] px-4 text-sm">Start fresh today</button>
+          </div>
+          <p className="mt-2 text-xs text-[var(--muted)]">Choose what fits today. Your previous progress stays saved.</p>
+        </section>
+      )}
+
       {/* PRIMARY NEXT ACTION */}
       <div id="mission-start" tabIndex={-1} className="scroll-mt-6 rounded-2xl focus-visible:outline-2 focus-visible:outline-[var(--success)]">
       {!capacity ? (
@@ -278,6 +296,7 @@ export default function TodayPage() {
           </div>
 
           {/* ACTIVATION CARD */}
+          <StarterStep key={mainQuest.id} missionId={mainQuest.id} starter={state.starters?.[mainQuest.id]} onChange={() => refreshProgress((value) => value + 1)} />
           <div className="dark-panel-elevated rounded-3xl border border-[var(--border-accent)] p-6 md:p-8">
             <div className="text-center">
               <h3 className="text-3xl font-bold md:text-4xl">Ready to Move?</h3>

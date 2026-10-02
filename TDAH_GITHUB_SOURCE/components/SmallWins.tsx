@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 import type { TDAHState } from "@/lib/storage";
-import { SMALL_WINS } from "@/lib/small-wins";
-import { addSmallWin, completeSmallWin, removeSmallWin, restAfterSmallWins } from "@/lib/storage/actions";
+import { SMALL_WINS, smallWinItems } from "@/lib/small-wins";
+import { addSmallWin, completeSmallWin, editSmallWin, removeSmallWin, restoreSmallWin, restAfterSmallWins } from "@/lib/storage/actions";
 import { XP_VALUES } from "@/lib/xp/config";
 
 export function SmallWins({ wins, today, onChange }: {
@@ -13,10 +13,12 @@ export function SmallWins({ wins, today, onChange }: {
 }) {
   const [customTitle, setCustomTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const firstButton = useRef<HTMLButtonElement>(null);
   const completed = new Set(wins.completions[today] || []);
   const resting = wins.restDate === today;
-  const items = [...SMALL_WINS, ...wins.custom.map((win) => ({ ...win, icon: "✨" }))];
+  const items = smallWinItems(wins);
 
   function nextMission() {
     restAfterSmallWins(false);
@@ -61,6 +63,7 @@ export function SmallWins({ wins, today, onChange }: {
           </div>
           <details className="mt-4">
             <summary className="min-h-[44px] cursor-pointer py-2 text-sm font-semibold">Make it yours</summary>
+            <p className="mb-2 text-xs text-[var(--muted)]">Edit any name or add your own. The defaults stay available to restore. Earned XP stays yours.</p>
             <form className="mt-2 flex gap-2" onSubmit={(event) => {
               event.preventDefault();
               if (addSmallWin(customTitle)) { setCustomTitle(""); setMessage("Your small win is ready. Tap it when you’ve done it."); onChange(); }
@@ -70,12 +73,37 @@ export function SmallWins({ wins, today, onChange }: {
               <input id="custom-small-win" value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} maxLength={80} placeholder="e.g. Washed one plate" className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-[var(--border-accent)] bg-[var(--surface)] px-3 text-sm" />
               <button type="submit" disabled={!customTitle.trim()} className="gradient-button min-h-[48px] rounded-xl px-4 font-bold text-white disabled:opacity-40">Add</button>
             </form>
-            {wins.custom.map((win) => (
-              <div key={win.id} className="mt-2 flex items-center justify-between gap-3 text-sm">
-                <span className="break-words">{win.title}</span>
-                <button type="button" aria-label={`Remove ${win.title}`} onClick={() => { removeSmallWin(win.id); setMessage("Button removed. Earned XP stays yours."); onChange(); }} className="min-h-[44px] px-3 text-[var(--muted)]">Remove</button>
-              </div>
-            ))}
+            {items.map((win) => {
+              const isDefault = SMALL_WINS.some((item) => item.id === win.id);
+              return (
+                <div key={win.id} className="mt-3 rounded-xl border border-[var(--border-accent)] p-3 text-sm">
+                  {editing === win.id ? (
+                    <form onSubmit={(event) => {
+                      event.preventDefault();
+                      if (editSmallWin(win.id, editTitle)) { setEditing(null); setMessage("Name saved. Your progress stays yours."); onChange(); }
+                      else setMessage("Use a name that is not already on another win.");
+                    }}>
+                      <label htmlFor="edit-small-win" className="block font-semibold">Edit small win</label>
+                      <input autoFocus id="edit-small-win" value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={80} className="mt-2 min-h-[48px] w-full rounded-xl border border-[var(--border-accent)] bg-[var(--surface)] px-3" />
+                      <div className="mt-2 flex gap-2">
+                        <button type="submit" disabled={!editTitle.trim()} className="gradient-button min-h-[44px] rounded-xl px-4 font-bold text-white disabled:opacity-40">Save</button>
+                        <button type="button" onClick={() => setEditing(null)} className="min-h-[44px] px-3">Cancel</button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <span className="block break-words font-semibold">{win.title}</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <button type="button" aria-label={`Edit ${win.title}`} onClick={() => { setEditing(win.id); setEditTitle(win.title); }} className="min-h-[44px] px-3 underline">Edit</button>
+                        {isDefault ? (wins.labels?.[win.id] && <button type="button" aria-label={`Restore default name for ${win.title}`} onClick={() => { restoreSmallWin(win.id); setMessage("Default name restored. Your progress is unchanged."); onChange(); }} className="min-h-[44px] px-3 text-[var(--muted)]">Restore default</button>) : (
+                          <button type="button" aria-label={`Remove ${win.title}`} onClick={() => { removeSmallWin(win.id); setMessage("Button removed. Earned XP stays yours."); onChange(); }} className="min-h-[44px] px-3 text-[var(--muted)]">Remove</button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </details>
           <p role="status" aria-live="polite" className="mt-3 min-h-[24px] text-sm font-semibold text-[var(--success)]">{message}</p>
           {completed.size > 0 && (

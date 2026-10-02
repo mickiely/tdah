@@ -7,9 +7,11 @@
 
 import { Capacity } from "@/lib/xp/config";
 import { FocusDuration } from "@/lib/focus";
+import type { Starter } from "@/lib/starter";
 
 // Core state structure
 export interface TDAHState {
+  starters?: Record<string, Starter>;
   profile: {
     displayName: string;
     timezone: string;
@@ -20,6 +22,7 @@ export interface TDAHState {
   };
   smallWins: {
     custom: Array<{ id: string; title: string }>;
+    labels?: Record<string, string>;
     completions: { [date: string]: string[] };
     restDate?: string;
   };

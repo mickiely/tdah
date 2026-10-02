@@ -9,7 +9,71 @@ import { XP_VALUES, type Capacity, levelForXp } from "@/lib/xp/config";
 import type { FocusDuration } from "@/lib/focus";
 import { actualMinutesFocused } from "@/lib/focus";
 import { computeChainUpdate } from "@/lib/chain";
-import { SMALL_WINS } from "@/lib/small-wins";
+import { SMALL_WINS, smallWinItems } from "@/lib/small-wins";
+import { starterRemaining, type Starter } from "@/lib/starter";
+
+function updateStarter(id: string, change: (starter: Starter) => Starter): boolean {
+  const state = getState();
+  const mission = state.missions[getTodayDate()];
+  const starter = state.starters?.[id];
+  if (!starter || mission?.id !== id || mission.status !== "in_progress") return false;
+  updateState((s) => ({ ...s, starters: { ...s.starters, [id]: change(starter) } }));
+  return true;
+}
+
+export function saveStarterAction(id: string, action: string): boolean {
+  const trimmed = action.trim().replace(/\s+/g, " ").slice(0, 160);
+  const mission = getState().missions[getTodayDate()];
+  if (!trimmed || mission?.id !== id || mission.status !== "in_progress") return false;
+  updateState((s) => ({ ...s, starters: { ...s.starters, [id]: {
+    ...s.starters?.[id], action: trimmed, savedAt: s.starters?.[id]?.savedAt || new Date().toISOString(),
+  } } }));
+  return true;
+}
+
+export function confirmStarterStarted(id: string): boolean {
+  return updateStarter(id, (s) => ({ ...s, confirmedAt: s.confirmedAt || new Date().toISOString() }));
+}
+
+export function changeStarterTimer(id: string, command: "start" | "pause" | "resume" | "finish"): boolean {
+  const now = Date.now();
+  return updateStarter(id, (s) => {
+    const remainingMs = starterRemaining(s, now);
+    if (command === "start") {
+      if (s.timer && s.timer.status !== "finished") return s;
+      return { ...s, timer: { status: "running", remainingMs: 120000, runningSince: now } };
+    }
+    if (!s.timer || s.timer.status === "finished") return s;
+    if (command === "resume" && s.timer.status === "paused" && remainingMs > 0)
+      return { ...s, timer: { status: "running", remainingMs, runningSince: now } };
+    if (command === "pause" && s.timer.status === "running")
+      return { ...s, timer: { status: remainingMs > 0 ? "paused" : "finished", remainingMs } };
+    if (command === "finish") return { ...s, timer: { status: "finished", remainingMs } };
+    return s;
+  });
+}
+
+export function saveStarterNote(id: string, note: string): boolean {
+  return updateStarter(id, (s) => ({ ...s, nextNote: note.trim().slice(0, 240) }));
+}
+
+export function rateStarter(id: string, helpful: "yes" | "no"): boolean {
+  return updateStarter(id, (s) => ({ ...s, helpful }));
+}
+
+export function resumePreviousMission(date: string): boolean {
+  const today = getTodayDate();
+  const state = getState();
+  const previous = state.missions[date];
+  const starter = previous && state.starters?.[previous.id];
+  if (date >= today || state.missions[today] || previous?.status !== "in_progress" || !starter?.nextNote) return false;
+  saveMainQuest(previous.title);
+  const id = getState().missions[today].id;
+  updateState((s) => ({ ...s, starters: { ...s.starters, [id]: {
+    action: starter.nextNote!, nextNote: starter.nextNote, savedAt: new Date().toISOString(),
+  } } }));
+  return true;
+}
 
 // Small wins use the existing 10 XP routine reward, once per action per local day.
 export function completeSmallWin(id: string): boolean {
@@ -34,15 +98,38 @@ export function addSmallWin(title: string): boolean {
   const trimmed = title.trim().replace(/\s+/g, " ").slice(0, 80);
   if (!trimmed) return false;
   const wins = getState().smallWins;
-  const all = [...SMALL_WINS, ...wins.custom];
+  const all = smallWinItems(wins);
   if (all.some((win) => win.title.toLocaleLowerCase() === trimmed.toLocaleLowerCase())) return false;
   const id = `custom:${trimmed.toLocaleLowerCase()}`;
+  if (wins.custom.some((win) => win.id === id)) return false;
   updateState((state) => ({ ...state, smallWins: { ...state.smallWins, custom: [...state.smallWins.custom, { id, title: trimmed }] } }));
   return true;
 }
 
 export function removeSmallWin(id: string): void {
-  updateState((state) => ({ ...state, smallWins: { ...state.smallWins, custom: state.smallWins.custom.filter((win) => win.id !== id) } }));
+  updateState((state) => {
+    const labels = { ...state.smallWins.labels };
+    delete labels[id];
+    return { ...state, smallWins: { ...state.smallWins, labels, custom: state.smallWins.custom.filter((win) => win.id !== id) } };
+  });
+}
+
+// Rename the label only: its identity, completion history and XP stay unchanged.
+export function editSmallWin(id: string, title: string): boolean {
+  const trimmed = title.trim().replace(/\s+/g, " ").slice(0, 80);
+  const items = smallWinItems(getState().smallWins);
+  if (!trimmed || !items.some((win) => win.id === id) || items.some((win) => win.id !== id && win.title.toLocaleLowerCase() === trimmed.toLocaleLowerCase())) return false;
+  updateState((state) => ({ ...state, smallWins: { ...state.smallWins, labels: { ...state.smallWins.labels, [id]: trimmed } } }));
+  return true;
+}
+
+export function restoreSmallWin(id: string): void {
+  if (!SMALL_WINS.some((win) => win.id === id)) return;
+  updateState((state) => {
+    const labels = { ...state.smallWins.labels };
+    delete labels[id];
+    return { ...state, smallWins: { ...state.smallWins, labels } };
+  });
 }
 
 export function restAfterSmallWins(rest: boolean): void {
